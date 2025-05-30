@@ -1,3 +1,17 @@
 .venv
 requirements.txt
 .env
+python-env
+setup.ps1
+creating_new_data.ipynb
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+.pytest_cache
+.DS_Store
+new_data
+auto_model
+models
+mlruns
