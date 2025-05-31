@@ -15,6 +15,7 @@ import json,shutil
 from dotenv import load_dotenv
 import cloudpickle
 from sqlalchemy import create_engine
+import pickle
 
 # Load environment variables
 load_dotenv()
@@ -44,7 +45,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     ohe_cols=['transmission','fuelType']
 
     # Load pre-trained OneHotEncoder
-    ohe=joblib.load('preprocessors/ohe_encoder.pkl')
+    ohe=pickle.load(open('preprocessors/ohe_encoder.pkl','rb'))
 
     ohe_encoded = ohe.transform(df[ohe_cols])
     ohe_encoded_df = pd.DataFrame(ohe_encoded, columns=ohe.get_feature_names_out(ohe_cols), index=df.index)
@@ -55,7 +56,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.concat([df_encoded, ohe_encoded_df], axis=1)
 
     # Load and apply pre-trained TargetEncoder
-    target_encoder=joblib.load('preprocessors/target_encoder.pkl')
+    target_encoder=pickle.load('preprocessors/target_encoder.pkl')
     
     df_encoded[['model_encoded','brand_encoded']] = target_encoder.transform(df[['model','brand']])
     df_encoded.drop(columns=['model','brand'], inplace=True)
