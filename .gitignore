@@ -1,7 +1,9 @@
 .venv
-requirements.txt
 .env
 python-env
+new_data
+auto_model/
+mlruns
 setup.ps1
 creating_new_data.ipynb
 __pycache__/
@@ -11,6 +13,3 @@ __pycache__/
 *.db
 .pytest_cache
 .DS_Store
-new_data
-auto_model/
-mlruns/
