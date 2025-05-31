@@ -24,7 +24,9 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
+          pip install --no-cache-dir https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.46.0.7-py2.py3-none-any.whl
 
       - name: Set up MLflow tracking URI
         run: echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
