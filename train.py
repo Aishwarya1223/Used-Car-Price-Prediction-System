@@ -60,8 +60,14 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.concat([df_encoded.reset_index(drop=True), ohe_encoded_df.reset_index(drop=True)], axis=1)
 
     # Load pre-trained target encoding mappings
-    model_encoding = pickle.load('picklefile_preprocessors/mean_encoder.pkl')
-    brand_encoding = pickle.load('picklefile_preprocessors/mean_encoder.pkl')
+    with open('picklefile_preprocessors/model_encoding.pkl','rb') as f:
+        model_encoding = pickle.load(f)
+    
+    with open('picklefile_preprocessors/brand_encoding.pkl','rb') as f:
+        brand_encoding = pickle.load(f)
+        
+    model_encoding = model_encoding['model_encoding']
+    brand_encoding = brand_encoding['brand_encoding']
 
     # Apply target encoding manually
     df_encoded['model_encoded'] = df_encoded['model'].map(model_encoding)
