@@ -10,14 +10,15 @@ on:
 jobs:
   retrain:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.10.x
+          python-version: '3.10.x'
           cache: 'pip'
 
       - name: Install Dependencies
@@ -25,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set up MLflow tracking URI (Optional)
+      - name: Set up MLflow tracking URI
         run: echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
 
       - name: Run Training Script
@@ -36,8 +37,9 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add best_model/
-          git commit -m "Auto-retrained best model at $(date -u +"%Y-%m-%d %H:%M:%S")"
-          git push || echo "No changes to commit"
+          git diff --cached --quiet || git commit -m "Auto-retrained best model at $(date -u +"%Y-%m-%d %H:%M:%S")"
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
