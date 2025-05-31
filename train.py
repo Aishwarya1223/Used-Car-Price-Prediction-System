@@ -13,9 +13,7 @@ import h2o
 from h2o.automl import H2OAutoML
 import json,shutil
 from dotenv import load_dotenv
-import cloudpickle
 from sqlalchemy import create_engine
-import pickle
 
 # Load environment variables
 load_dotenv()
@@ -40,26 +38,34 @@ def load_data(path:Path) -> pd.DataFrame:
     else:
         raise FileNotFoundError(f'No file at path: {path}')
 
+import pandas as pd
+import joblib
+from sklearn.preprocessing import OneHotEncoder
+
 def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
-    
-    ohe_cols=['transmission','fuelType']
+    ohe_cols = ['transmission', 'fuelType']
 
     # Load pre-trained OneHotEncoder
-    ohe=pickle.load(open('preprocessors/ohe_encoder.pkl','rb'))
+    ohe = joblib.load('preprocessors/ohe_encoder.pkl')
 
+    # Transform categorical features
     ohe_encoded = ohe.transform(df[ohe_cols])
     ohe_encoded_df = pd.DataFrame(ohe_encoded, columns=ohe.get_feature_names_out(ohe_cols), index=df.index)
-    
 
-    # Drop original categorical columns and concat encoded ones
+    # Drop original categorical columns and concatenate encoded ones
     df_encoded = df.drop(columns=ohe_cols)
-    df_encoded = pd.concat([df_encoded, ohe_encoded_df], axis=1)
+    df_encoded = pd.concat([df_encoded.reset_index(drop=True), ohe_encoded_df.reset_index(drop=True)], axis=1)
 
-    # Load and apply pre-trained TargetEncoder
-    target_encoder=pickle.load(open('preprocessors/target_encoder.pkl','rb'))
-    
-    df_encoded[['model_encoded','brand_encoded']] = target_encoder.transform(df[['model','brand']])
-    df_encoded.drop(columns=['model','brand'], inplace=True)
+    # Load pre-trained target encoding mappings
+    model_encoding = joblib.load('preprocessors/target_encoder.pkl')
+    brand_encoding = joblib.load('preprocessors/target_encoder.pkl')
+
+    # Apply target encoding manually
+    df_encoded['model_encoded'] = df_encoded['model'].map(model_encoding)
+    df_encoded['brand_encoded'] = df_encoded['brand'].map(brand_encoding)
+
+    # Drop original categorical columns
+    df_encoded.drop(columns=['model', 'brand'], inplace=True)
 
     return df_encoded
 
