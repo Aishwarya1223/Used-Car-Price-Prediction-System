@@ -1,7 +1,6 @@
 .venv
 .env
 python-env
-new_data
 auto_model/
 mlruns
 setup.ps1
