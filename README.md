@@ -32,6 +32,11 @@ pip uninstall h2o
 # Next, use pip to install this version of the H2O Python module.
 pip install https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.46.0.7-py2.py3-none-any.whl
 
+#Add this (if needed) to create the database
+- name: Create used_car DB
+        run: |
+          mysql -h127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} -e "CREATE DATABASE IF NOT EXISTS used_car;"
+
 # Add this to import csv to MySQL
 - name: Import CSV into MySQL
         run: |

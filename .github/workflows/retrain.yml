@@ -4,21 +4,36 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 0 * * SUN" # Every Sunday
+    - cron: "0 0 * * SUN" # Every Sunday at midnight UTC
   workflow_dispatch:
 
 jobs:
   retrain:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DB }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+          cache: 'pip'
 
       - name: Install Dependencies
         run: |
@@ -26,15 +41,19 @@ jobs:
           pip install -r requirements.txt
           pip install --no-cache-dir https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.46.0.7-py2.py3-none-any.whl
 
-      - name: Export MySQL ENV Vars
+      - name: Export MySQL env variables
         run: |
           echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> $GITHUB_ENV
           echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> $GITHUB_ENV
-          echo "MYSQL_HOST=${{ secrets.MYSQL_HOST }}" >> $GITHUB_ENV
-          echo "MYSQL_PORT=${{ secrets.MYSQL_PORT }}" >> $GITHUB_ENV
+          echo "MYSQL_HOST=localhost" >> $GITHUB_ENV
+          echo "MYSQL_PORT=3306" >> $GITHUB_ENV
           echo "MYSQL_DB=${{ secrets.MYSQL_DB }}" >> $GITHUB_ENV
+          
+      - name: Import car_data_dump.sql into MySQL
+        run: |
+          mysql -h127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} ${{ secrets.MYSQL_DB }} < sql_data/car_data_dump.sql
 
-      - name: Set up MLflow tracking
+      - name: Set up MLflow tracking URI
         run: echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
 
       - name: Run Training Script
@@ -45,7 +64,7 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add best_model/
-          git diff --cached --quiet || git commit -m "Auto-retrained best model at $(date -u +'%Y-%m-%d %H:%M:%S')"
+          git diff --cached --quiet || git commit -m "Auto-retrained best model at $(date -u +"%Y-%m-%d %H:%M:%S")"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
