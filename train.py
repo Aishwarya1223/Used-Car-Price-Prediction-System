@@ -1,7 +1,8 @@
 import pandas as pd
 from xgboost import XGBRegressor
 import joblib
-import category_encoders as ce
+#import category_encoders as ce
+from  sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 import os
 from pathlib import Path
