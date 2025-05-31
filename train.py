@@ -13,7 +13,7 @@ import h2o
 from h2o.automl import H2OAutoML
 import json,shutil
 from dotenv import load_dotenv
-import mysql.connector
+from sqlalchemy import create_engine
 
 # Load environment variables
 load_dotenv()
@@ -24,16 +24,12 @@ port = os.getenv("MYSQL_PORT")
 db = os.getenv("MYSQL_DB")
 
 
-conn = mysql.connector.connect(
-    host=host,
-    user=user,
-    password=password,
-    database=db
-)
+# Create SQLAlchemy engine
+engine = create_engine(f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db}")
 
+# Query recent records from car_data table
 query = "SELECT * FROM car_data WHERE updated_at >= NOW() - INTERVAL 7 DAY"
-df = pd.read_sql(query, conn)
-conn.close()
+df = pd.read_sql(query, engine)
 
 def load_data(path:Path) -> pd.DataFrame:
     if os.path.exists(path):
