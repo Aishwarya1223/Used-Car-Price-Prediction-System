@@ -48,7 +48,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     ohe_cols = ['transmission', 'fuelType']
 
     # Load pre-trained OneHotEncoder
-    with open('picklefile_preprocessors/ohe_encoder.pkl','rb') as f:
+    with open('picklefile_preprocessors/onehot_encoder.pkl','rb') as f:
         ohe = pickle.load(f)
 
     # Transform categorical features
@@ -60,8 +60,8 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.concat([df_encoded.reset_index(drop=True), ohe_encoded_df.reset_index(drop=True)], axis=1)
 
     # Load pre-trained target encoding mappings
-    model_encoding = pickle.load('picklefile_preprocessors/target_encoder.pkl')
-    brand_encoding = pickle.load('picklefile_preprocessors/target_encoder.pkl')
+    model_encoding = pickle.load('picklefile_preprocessors/mean_encoder.pkl')
+    brand_encoding = pickle.load('picklefile_preprocessors/mean_encoder.pkl')
 
     # Apply target encoding manually
     df_encoded['model_encoded'] = df_encoded['model'].map(model_encoding)
