@@ -1,16 +1,19 @@
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, DateTime
 from dotenv import load_dotenv
 import os
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
 
 # Read CSV
 df = pd.read_csv("new_data/new_data.csv")
-df=df.tail(10)
+df = df.tail(10)
 
+# Add updated_at column
+df["updated_at"] = datetime.now()
 
 # Build DB connection string from .env
 user = os.getenv("MYSQL_USER")
@@ -37,8 +40,9 @@ df.to_sql(
         "tax": sqlalchemy.types.Float(),
         "mpg": sqlalchemy.types.Float(),
         "engineSize": sqlalchemy.types.Float(),
-        "brand": sqlalchemy.types.String(50)
+        "brand": sqlalchemy.types.String(50),
+        "updated_at": DateTime()
     }
 )
 
-print("The table was created and the records were inserted successfully..")
+print("The table was created (if not exists) and the records were inserted successfully.")

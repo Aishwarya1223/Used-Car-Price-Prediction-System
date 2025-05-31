@@ -36,6 +36,9 @@ pip install https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.4
 - name: Create used_car DB
         run: |
           mysql -h127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} -e "CREATE DATABASE IF NOT EXISTS used_car;"
+- name: Import car_data_dump.sql into MySQL
+        run: |
+          mysql -h127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} ${{ secrets.MYSQL_DB }} < sql_data/car_data_dump.sql
 
 # Add this to import csv to MySQL
 - name: Import CSV into MySQL
