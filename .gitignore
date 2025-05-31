@@ -12,6 +12,5 @@ __pycache__/
 .pytest_cache
 .DS_Store
 new_data
-auto_model
-models
-mlruns
+auto_model/
+mlruns/
