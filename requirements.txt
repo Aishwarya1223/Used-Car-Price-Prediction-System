@@ -1,8 +1,8 @@
 ipykernel
 numpy
 pandas
-scikit-learn
-joblib
+scikit-learn==1.6.1
+joblib==1.5.0
 tensorflow
 python-dotenv
 matplotlib
