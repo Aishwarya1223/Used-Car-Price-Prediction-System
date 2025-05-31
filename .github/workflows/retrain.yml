@@ -49,6 +49,11 @@ jobs:
           echo "MYSQL_PORT=3306" >> $GITHUB_ENV
           echo "MYSQL_DB=${{ secrets.MYSQL_DB }}" >> $GITHUB_ENV
 
+
+      - name: Import SQL Dump
+        run: |
+          mysql -h127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} < sql_data/car_data_dump.sql
+
       - name: Set up MLflow tracking URI
         run: echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
 
