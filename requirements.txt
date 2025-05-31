@@ -19,5 +19,6 @@ streamlit
 pytest
 mlflow
 autokeras
-sqlalchemy 
+sqlalchemy
+cloudpickle
 mysql-connector-python
