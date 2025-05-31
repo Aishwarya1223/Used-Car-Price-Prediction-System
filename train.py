@@ -48,7 +48,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
     # Load pre-trained OneHotEncoder
     import numpy as np
-    ohe = np.load('preprocessors/ohe_encoder.pkl', allow_pickle=True)
+    ohe = np.load('picklefile_preprocessors/ohe_encoder.pkl', allow_pickle=True)
 
     # Transform categorical features
     ohe_encoded = ohe.transform(df[ohe_cols])
@@ -59,8 +59,8 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.concat([df_encoded.reset_index(drop=True), ohe_encoded_df.reset_index(drop=True)], axis=1)
 
     # Load pre-trained target encoding mappings
-    model_encoding = joblib.load('preprocessors/target_encoder.pkl')
-    brand_encoding = joblib.load('preprocessors/target_encoder.pkl')
+    model_encoding = joblib.load('picklefile_preprocessors/target_encoder.pkl')
+    brand_encoding = joblib.load('picklefile_preprocessors/target_encoder.pkl')
 
     # Apply target encoding manually
     df_encoded['model_encoded'] = df_encoded['model'].map(model_encoding)
@@ -131,8 +131,8 @@ if __name__=="__main__":
             mlflow.sklearn.log_model(model, artifact_path="xgb_model")
 
             # Log encoders
-            mlflow.log_artifact("preprocessors/ohe_encoder.pkl")
-            mlflow.log_artifact("preprocessors/target_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
 
             # Save model locally with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -148,8 +148,8 @@ if __name__=="__main__":
 
             mlflow.log_artifact(h2o_model_path)
         
-            mlflow.log_artifact("preprocessors/ohe_encoder.pkl")
-            mlflow.log_artifact("preprocessors/target_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
         
         
         
