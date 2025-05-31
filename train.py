@@ -56,7 +56,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     df_encoded = pd.concat([df_encoded, ohe_encoded_df], axis=1)
 
     # Load and apply pre-trained TargetEncoder
-    target_encoder=pickle.load('preprocessors/target_encoder.pkl')
+    target_encoder=pickle.load(open('preprocessors/target_encoder.pkl','rb'))
     
     df_encoded[['model_encoded','brand_encoded']] = target_encoder.transform(df[['model','brand']])
     df_encoded.drop(columns=['model','brand'], inplace=True)
