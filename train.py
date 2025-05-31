@@ -40,15 +40,12 @@ def load_data(path:Path) -> pd.DataFrame:
     else:
         raise FileNotFoundError(f'No file at path: {path}')
 
-import pandas as pd
-import joblib
-from sklearn.preprocessing import OneHotEncoder
 
 def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     ohe_cols = ['transmission', 'fuelType']
 
     # Load pre-trained OneHotEncoder
-    with open('picklefile_preprocessors/onehot_encoder.pkl','rb') as f:
+    with open('picklefile_preprocessors/onehot_encoder.pkl', 'rb') as f:
         ohe = pickle.load(f)
 
     # Transform categorical features
@@ -56,19 +53,25 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     ohe_encoded_df = pd.DataFrame(ohe_encoded, columns=ohe.get_feature_names_out(ohe_cols), index=df.index)
 
     # Drop original categorical columns and concatenate encoded ones
-    df_encoded = df.drop(columns=ohe_cols)
-    df_encoded = pd.concat([df_encoded.reset_index(drop=True), ohe_encoded_df.reset_index(drop=True)], axis=1)
+    df_encoded = df.drop(columns=ohe_cols).reset_index(drop=True)
+    df_encoded = pd.concat([df_encoded, ohe_encoded_df.reset_index(drop=True)], axis=1)
 
-    # Load pre-trained target encoding mappings
-    with open('picklefile_preprocessors/target_encoder.pkl') as f:
-        target_encoder=pickle.load(f)
-    encoded_cols = target_encoder.transform(df_encoded[['model', 'brand']])
-    df_encoded = pd.concat([df_encoded, encoded_cols], axis=1)
+    # Load pre-trained TargetEncoder
+    with open('picklefile_preprocessors/target_encoder.pkl', 'rb') as f:
+        target_encoder = pickle.load(f)
+
+    # Transform 'model' and 'brand' using the target encoder
+    target_encoded_df = target_encoder.transform(df[['model', 'brand']].copy())
     
-    # Drop original categorical columns
+    # Concatenate target encoded columns
+    df_encoded = pd.concat([df_encoded, target_encoded_df.reset_index(drop=True)], axis=1)
+
+    # Drop original 'model' and 'brand' columns
     df_encoded.drop(columns=['model', 'brand'], inplace=True)
-    
+
     return df_encoded
+
+
 
 if __name__=="__main__":
     
