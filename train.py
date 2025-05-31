@@ -47,7 +47,8 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     ohe_cols = ['transmission', 'fuelType']
 
     # Load pre-trained OneHotEncoder
-    ohe = joblib.load('preprocessors/ohe_encoder.pkl')
+    import numpy as np
+    ohe = np.load('preprocessors/ohe_encoder.pkl', allow_pickle=True)
 
     # Transform categorical features
     ohe_encoded = ohe.transform(df[ohe_cols])
