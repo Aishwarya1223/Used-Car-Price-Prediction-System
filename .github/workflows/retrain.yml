@@ -49,6 +49,9 @@ jobs:
           echo "MYSQL_PORT=3306" >> $GITHUB_ENV
           echo "MYSQL_DB=${{ secrets.MYSQL_DB }}" >> $GITHUB_ENV
 
+      - name: Insert data into MySQL via script
+        run: python connect_to_sql.py
+
       - name: Set up MLflow tracking URI
         run: echo "MLFLOW_TRACKING_URI=./mlruns" >> $GITHUB_ENV
 
