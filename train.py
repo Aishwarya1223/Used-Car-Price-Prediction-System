@@ -86,12 +86,12 @@ if __name__=="__main__":
     # Xgboost
     model: XGBRegressor = joblib.load('models/best_xgb_model.pkl')
     
-    
-    
     # h2o model
     train_df = pd.concat([x_train, y_train.rename("price")], axis=1)
     test_df = pd.concat([x_test, y_test.rename("price")], axis=1)
 
+    h2o.init(start_h2o=True, nthreads=-1, max_mem_size="2G", port=54321)
+    
     train_h2o = h2o.H2OFrame(train_df)
     test_h2o = h2o.H2OFrame(test_df)
 
