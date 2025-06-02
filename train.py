@@ -151,7 +151,7 @@ if __name__=="__main__":
             mlflow.log_metric("r2_score", r2)
             
             signature = infer_signature(x_test, y_pred)
-            mlflow.sklearn.log_model(model, artifact_path="model", signature=signature, input_example=x_test.iloc[:1])
+            mlflow.sklearn.log_model(model, artifact_path="model")
             
             # Log encoders
             mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
