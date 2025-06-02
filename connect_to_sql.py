@@ -10,7 +10,7 @@ load_dotenv()
 
 # Read CSV
 df = pd.read_csv("new_data/new_data.csv")
-df = df.tail(10)
+df = df.tail(200)
 
 # Add updated_at column
 df["updated_at"] = datetime.now()

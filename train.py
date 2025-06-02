@@ -79,6 +79,11 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__=="__main__":
+    
+    mlflow.set_tracking_uri("file:./mlruns")
+    mlflow.set_registry_uri("file:./mlruns")
+
+    
     nrows = df.shape[0]
     if nrows >= 20:
         nfolds = 5
@@ -126,8 +131,6 @@ if __name__=="__main__":
     # Save model
     h2o_model_path = h2o.save_model(model=aml.leader, path="models", force=True)
     
-   
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
 
     
     with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
@@ -211,6 +214,7 @@ if __name__=="__main__":
 
     # Log selected model to MLflow
     mlflow.set_tag("selected_model", best_model_type)
+    mlflow.log_artifact("best_model/model_metadata.json")
 
     # Save metadata
     metadata = {
