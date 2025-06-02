@@ -3,14 +3,22 @@ import joblib
 import pandas as pd
 import pickle
 import category_encoders as ce
+import os
 
-@st.cache_resource
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OHE_ENCODER_PATH = os.path.join(BASE_DIR,"picklefile_preprocessors", "onehot_encoder.pkl")
+TARGET_ENCODER_PATH = os.path.join(BASE_DIR,"picklefile_preprocessors", "target_encoder.pkl")
+FEATURE_NAMES_PATH = os.path.join(BASE_DIR, "picklefile_preprocessors", "feature_names.pkl")
+
+#@st.cache_resource
 def load_encoders():
-    with open("picklefile_preprocessors/ohe_encoder.pkl", "rb") as f:
+    with open(OHE_ENCODER_PATH, "rb") as f:
         ohe = pickle.load(f)
-    with open("picklefile_preprocessors/target_encoder.pkl", "rb") as f:
+    with open(TARGET_ENCODER_PATH, "rb") as f:
         target_encoder = pickle.load(f)
-    return ohe, target_encoder
+    with open(FEATURE_NAMES_PATH, "rb") as f:
+        feature_names = pickle.load(f)
+    return ohe, target_encoder, feature_names
 
 def preprocess_input(df: pd.DataFrame, ohe, target_encoder) -> pd.DataFrame:
     ohe_cols = ['transmission', 'fuelType']
@@ -94,9 +102,10 @@ if page == "🏠 Home":
         # --- Load the Best Model ---
         
         model = joblib.load("best_model/best_model.pkl")  # or h2o.load_model()
-        ohe, target_encoder = load_encoders()
+        ohe, target_encoder, feature_names = load_encoders()
         input_df = preprocess_input(input_df, ohe, target_encoder)
-
+        
+        input_df = input_df[feature_names]  # Align order exactly
         prediction = model.predict(input_df)[0]
 
         st.markdown("---")

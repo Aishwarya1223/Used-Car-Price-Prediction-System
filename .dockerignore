@@ -1,12 +1,28 @@
-# .dockerignore
+# Prevent build failures and speed up Docker build
+.venv
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.db
-.env
-.venv
-.git
-.idea
+*.sqlite3
+*.log
+*.zip
+*.tar.gz
+*.egg-info/
 .DS_Store
-.pytest_cache
+.env
+.git
+.gitignore
+.idea
+.vscode
+python-env
+node_modules
+notebooks/
+mlruns/
+artifacts/
+data/
+*.csv
+*.xlsx
+
+
