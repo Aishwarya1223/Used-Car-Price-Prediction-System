@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#Exit script on error
+set -e
+
 # System dependencies (WSL or Ubuntu)
 sudo apt update && sudo apt install -y \
   build-essential \
@@ -16,15 +19,16 @@ sudo apt update && sudo apt install -y \
   libxml2-dev \
   libgl1 \
   libgl1-mesa-glx \
-  default-jre
+  default-jre \
+  curl
 
 #create the virtual environmnet if not present
-if [ ! -d "python-env" ]; then
-  python3 -m venv python-env
+if [ ! -d ".venv" ]; then
+  python3 -m venv .venv
 fi
 
 # Activate virtual environment
-source python-env/bin/activate
+source .venv/bin/activate
 
 # Upgrade pip + build tools before installing anything else
 pip install --upgrade pip setuptools wheel

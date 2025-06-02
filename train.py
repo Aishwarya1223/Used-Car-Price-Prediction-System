@@ -78,136 +78,113 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     nrows = df.shape[0]
-    if nrows >= 10:
+    if nrows >= 20:
         nfolds = 5
-        max_models=20
+        max_models = 20
     elif nrows >= 2:
-        nfolds = -1 # Leave-One-Out CV for very small datasets
-        max_models=5 # Limit models for small data to reduce overfitting
+        nfolds = -1
+        max_models = 5
     else:
-        print("Not enough data to train")
+        print("Not enough data to train.")
         exit()
-        
-    #df=load_data(Path('new_data/new_data.csv'))
-    df_processed=preprocessing(df)
-    
-    x=df_processed.drop('price',axis=1)
-    y=df_processed['price']
-    
-    x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2,random_state=42)
 
-    # Xgboost
+    df_processed = preprocessing(df)
+    x = df_processed.drop('price', axis=1)
+    y = df_processed['price']
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     model: XGBRegressor = joblib.load('models/best_xgb_model.pkl')
-    
-    # h2o model
+
     train_df = pd.concat([x_train, y_train.rename("price")], axis=1)
     test_df = pd.concat([x_test, y_test.rename("price")], axis=1)
 
-    h2o.init(start_h2o=True, nthreads=-1, max_mem_size="2G", port=54321)
-    
-    train_h2o = h2o.H2OFrame(train_df)
-    test_h2o = h2o.H2OFrame(test_df)
+    h2o.init(nthreads=-1, max_mem_size="2G", port=54321, bind_to_localhost=True)
 
-    features = x.columns.tolist()
-    target = "price"
+    try:
+        train_h2o = h2o.H2OFrame(train_df)
+        test_h2o = h2o.H2OFrame(test_df)
+        features = x.columns.tolist()
+        target = "price"
 
-    
-    # Train H2O AutoML
-    aml = H2OAutoML(max_models=max_models, seed=42, nfolds=nfolds)
-    aml.train(x=features, y=target, training_frame=train_h2o)
+        aml = H2OAutoML(max_models=max_models, seed=42, nfolds=nfolds)
+        aml.train(x=features, y=target, training_frame=train_h2o)
 
-    # Evaluate
-    perf = aml.leader.model_performance(test_data=test_h2o)
-    r2_h2o = perf.r2()
-    rmse_h2o = perf.rmse()
+        perf = aml.leader.model_performance(test_data=test_h2o)
+        r2_h2o = perf.r2()
+        rmse_h2o = perf.rmse()
+        h2o_model_path = h2o.save_model(model=aml.leader, path="models", force=True)
 
-    # Save model
-    h2o_model_path = h2o.save_model(model=aml.leader, path="models", force=True)
-    
-    mlflow.set_tracking_uri("http://localhost:5000")
-    
-    with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
-        with mlflow.start_run(run_name="XGBRegressor", nested=True):
-            # Train
-            model.fit(x_train, y_train)
+        with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
+            # XGB nested run
+            with mlflow.start_run(run_name="XGBRegressor", nested=True):
+                model.fit(x_train, y_train)
+                y_pred = model.predict(x_test)
+                rmse = mean_squared_error(y_test, y_pred, squared=False)
+                r2 = r2_score(y_test, y_pred)
 
-            # Evaluate
-            y_pred = model.predict(x_test)
-            rmse = root_mean_squared_error(y_test, y_pred) 
-            r2 = r2_score(y_test, y_pred)
+                mlflow.log_param("model_type", "XGBRegressor")
+                mlflow.log_param("train_size", len(x_train))
+                mlflow.log_param("timestamp", timestamp)
+                mlflow.log_metric("rmse", rmse)
+                mlflow.log_metric("r2_score", r2)
 
-            # Log params and metrics
-            mlflow.log_param("model_type", "XGBRegressor")
-            mlflow.log_param("train_size", len(x_train))
-            mlflow.log_metric("rmse", rmse)
-            mlflow.log_metric("r2_score", r2)
-            
-            signature = infer_signature(x_test, y_pred)
-            mlflow.sklearn.log_model(model, "xgb_model", signature=signature, input_example=x_test.iloc[:1])
-            
-            # Log encoders
-            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
-            mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
-            
-            
-            # Save model locally with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            local_model_path = f"models/xgb_model_{timestamp}.pkl"
-            
-            joblib.dump(model, local_model_path)
-            
-        
-        with mlflow.start_run(run_name="H2OAutoML", nested=True):
-            mlflow.log_param("model_type", "H2OAutoML")
-            mlflow.log_param("train_size", len(x_train))
-            mlflow.log_metric("rmse", rmse_h2o)
-            mlflow.log_metric("r2_score", r2_h2o)
+                signature = infer_signature(x_test, y_pred)
+                mlflow.sklearn.log_model(model, "xgb_model", signature=signature, input_example=x_test.iloc[:1])
+                mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+                mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
 
-            mlflow.log_artifact(h2o_model_path)
-        
-            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
-            mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
-        
-        
-        
-    # Compare R²
-    if r2 > r2_h2o:
-        print("XGBoost is the best model.")
-        best_model_type = "XGBoost"
-        best_model_file = "models/best_xgb_model.pkl"
-        
-        # Clean or create the best_model directory
-        if os.path.exists("best_model"):
-            shutil.rmtree("best_model")
-        os.makedirs("best_model", exist_ok=True)
-        
-        # Save best model
-        shutil.copy(best_model_file, "best_model/best_model.pkl")
-    elif r2 < r2_h2o:
-        print("H2O AutoML is the best model.")
-        best_model_type = "H2OAutoML"
-        best_model_dir = h2o_model_path  # full directory path returned by h2o.save_model()
+                local_model_path = f"models/xgb_model_{timestamp}.pkl"
+                joblib.dump(model, local_model_path)
 
-        # Clear and copy H2O model folder to best_model/
-        if os.path.exists("best_model"):
-            shutil.rmtree("best_model")
-            
-        shutil.copy(h2o_model_path, "best_model/h2o_best_model.pkl")
-    else:
-        print("Both models have equal R². Choosing XGBoost by default.")
-        best_model_type = "XGBoost"
-    mlflow.set_tag("selected_model", best_model_type)
-    # Save metadata
-    metadata = {
-        "best_model": best_model_type,
-        "r2_score": max(r2, r2_h2o),
-        "timestamp": timestamp
-    }
-    with open("best_model/model_metadata.json", "w") as f:
-        json.dump(metadata, f, indent=4)
-    h2o.shutdown(prompt=False)
+            # H2O nested run
+            with mlflow.start_run(run_name="H2OAutoML", nested=True):
+                mlflow.log_param("model_type", "H2OAutoML")
+                mlflow.log_param("train_size", len(x_train))
+                mlflow.log_param("timestamp", timestamp)
+                mlflow.log_metric("rmse", rmse_h2o)
+                mlflow.log_metric("r2_score", r2_h2o)
+                mlflow.log_artifact(h2o_model_path)
+                mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+                mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
+
+            # Compare models
+            if r2 > r2_h2o:
+                print("XGBoost is the best model.")
+                best_model_type = "XGBoost"
+                best_model_file = local_model_path
+            elif r2 < r2_h2o:
+                print("H2O AutoML is the best model.")
+                best_model_type = "H2OAutoML"
+                best_model_file = h2o_model_path
+            else:
+                print("Both models have equal R². Choosing XGBoost by default.")
+                best_model_type = "XGBoost"
+                best_model_file = local_model_path
+
+            # Save best model
+            if os.path.exists("best_model"):
+                shutil.rmtree("best_model")
+            os.makedirs("best_model", exist_ok=True)
+            shutil.copy(best_model_file, "best_model/best_model.pkl")
+
+            mlflow.set_tag("selected_model", best_model_type)
+
+            metadata = {
+                "best_model": best_model_type,
+                "r2_score": max(r2, r2_h2o),
+                "timestamp": timestamp
+            }
+            with open("best_model/model_metadata.json", "w") as f:
+                json.dump(metadata, f, indent=4)
+
+    finally:
+        h2o.shutdown(prompt=False)
+
+
 
 
         

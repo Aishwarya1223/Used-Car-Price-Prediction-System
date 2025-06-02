@@ -1,6 +1,31 @@
 import streamlit as st
 import joblib
 import pandas as pd
+import pickle
+import category_encoders as ce
+
+@st.cache_resource
+def load_encoders():
+    with open("picklefile_preprocessors/ohe_encoder.pkl", "rb") as f:
+        ohe = pickle.load(f)
+    with open("picklefile_preprocessors/target_encoder.pkl", "rb") as f:
+        target_encoder = pickle.load(f)
+    return ohe, target_encoder
+
+def preprocess_input(df: pd.DataFrame, ohe, target_encoder) -> pd.DataFrame:
+    ohe_cols = ['transmission', 'fuelType']
+    ohe_encoded = ohe.transform(df[ohe_cols])
+    ohe_encoded_df = pd.DataFrame(ohe_encoded, columns=ohe.get_feature_names_out(ohe_cols), index=df.index)
+
+    df_encoded = df.drop(columns=ohe_cols).reset_index(drop=True)
+    df_encoded = pd.concat([df_encoded, ohe_encoded_df.reset_index(drop=True)], axis=1)
+
+    target_encoded_df = target_encoder.transform(df[['model', 'brand']].copy())
+    df_encoded = pd.concat([df_encoded, target_encoded_df.reset_index(drop=True)], axis=1)
+
+    df_encoded.drop(columns=['model', 'brand'], inplace=True)
+    return df_encoded
+
 
 # --- Streamlit Page Config ---
 st.set_page_config(page_title="Used Car Price Prediction", layout="wide")
@@ -67,10 +92,10 @@ if page == "🏠 Home":
         input_df = pd.DataFrame([input_data])
 
         # --- Load the Best Model ---
+        
         model = joblib.load("best_model/best_model.pkl")  # or h2o.load_model()
-
-        # --- Apply preprocessing here if needed ---
-        # input_df = preprocess(input_df)
+        ohe, target_encoder = load_encoders()
+        input_df = preprocess_input(input_df, ohe, target_encoder)
 
         prediction = model.predict(input_df)[0]
 
