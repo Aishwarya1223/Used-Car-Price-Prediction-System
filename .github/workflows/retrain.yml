@@ -1,8 +1,6 @@
 name: Auto Retrain Model
 
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: "0 0 * * SUN" # Every Sunday at midnight UTC
   workflow_dispatch:

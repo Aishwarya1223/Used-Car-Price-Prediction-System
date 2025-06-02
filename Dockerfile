@@ -5,7 +5,7 @@ FROM python:3.11.1-slim
 WORKDIR /app
 
 # Install Java (needed for H2O) and clean up cache
-RUN apt-get update && apt-get install -y --no-install-recommends default-jre \
+RUN apt-get update && apt-get install -y --no-install-recommends default-jre curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
