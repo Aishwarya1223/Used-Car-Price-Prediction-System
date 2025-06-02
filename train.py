@@ -16,6 +16,7 @@ import json,shutil
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 import pickle
+from mlflow.models.signature import infer_signature
 
 # Load environment variables
 load_dotenv()
@@ -78,7 +79,17 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__=="__main__":
-    
+    nrows = df.shape[0]
+    if nrows >= 10:
+        nfolds = 5
+        max_models=20
+    elif nrows >= 2:
+        nfolds = -1 # Leave-One-Out CV for very small datasets
+        max_models=5 # Limit models for small data to reduce overfitting
+    else:
+        print("Not enough data to train")
+        exit()
+        
     #df=load_data(Path('new_data/new_data.csv'))
     df_processed=preprocessing(df)
     
@@ -102,8 +113,9 @@ if __name__=="__main__":
     features = x.columns.tolist()
     target = "price"
 
+    
     # Train H2O AutoML
-    aml = H2OAutoML(max_models=10, seed=42)
+    aml = H2OAutoML(max_models=max_models, seed=42, nfolds=nfolds)
     aml.train(x=features, y=target, training_frame=train_h2o)
 
     # Evaluate
@@ -114,7 +126,7 @@ if __name__=="__main__":
     # Save model
     h2o_model_path = h2o.save_model(model=aml.leader, path="models", force=True)
     
-    
+    mlflow.set_tracking_uri("http://localhost:5000")
     
     with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
         with mlflow.start_run(run_name="XGBRegressor", nested=True):
@@ -132,17 +144,18 @@ if __name__=="__main__":
             mlflow.log_metric("rmse", rmse)
             mlflow.log_metric("r2_score", r2)
             
-
-            # Log model artifact
-            mlflow.sklearn.log_model(model, artifact_path="xgb_model")
-
+            signature = infer_signature(x_test, y_pred)
+            mlflow.sklearn.log_model(model, "xgb_model", signature=signature, input_example=x_test.iloc[:1])
+            
             # Log encoders
             mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
             mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
-
+            
+            
             # Save model locally with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             local_model_path = f"models/xgb_model_{timestamp}.pkl"
+            
             joblib.dump(model, local_model_path)
             
         
@@ -181,7 +194,7 @@ if __name__=="__main__":
         if os.path.exists("best_model"):
             shutil.rmtree("best_model")
             
-        shutil.copytree(best_model_dir, "best_model")
+        shutil.copy(h2o_model_path, "best_model/h2o_best_model.pkl")
     else:
         print("Both models have equal R². Choosing XGBoost by default.")
         best_model_type = "XGBoost"
@@ -194,5 +207,7 @@ if __name__=="__main__":
     }
     with open("best_model/model_metadata.json", "w") as f:
         json.dump(metadata, f, indent=4)
+    h2o.shutdown(prompt=False)
+
 
         
