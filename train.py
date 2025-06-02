@@ -80,8 +80,9 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__=="__main__":
     
-    mlflow.set_tracking_uri("file:./mlruns")
-    mlflow.set_registry_uri("file:./mlruns")
+    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow.set_registry_uri("http://localhost:5000")
+
 
     
     nrows = df.shape[0]
