@@ -125,7 +125,10 @@ if __name__=="__main__":
 
     # Save model
     h2o_model_path = h2o.save_model(model=aml.leader, path="models", force=True)
-    mlflow.set_tracking_uri('http://localhost:5000')
+    
+   
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
+
     
     with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
         with mlflow.start_run(run_name="XGBRegressor", nested=True):
