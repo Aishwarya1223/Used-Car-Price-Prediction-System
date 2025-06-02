@@ -53,7 +53,7 @@ jobs:
         run: python connect_to_sql.py
 
       - name: Set up MLflow tracking URI
-        run: echo "MLFLOW_TRACKING_URI=http://localhost:5000" >> $GITHUB_ENV
+        run: echo "MLFLOW_TRACKING_URI=file:./mlruns" >> $GITHUB_ENV
 
       - name: Run Training Script
         run: python train.py

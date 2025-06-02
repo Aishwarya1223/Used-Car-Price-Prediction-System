@@ -80,8 +80,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__=="__main__":
     
-    mlflow.set_tracking_uri("http://localhost:5000")
-    mlflow.set_registry_uri("http://localhost:5000")
+    mlflow.set_tracking_uri("file:./mlruns")
 
 
     
@@ -135,6 +134,7 @@ if __name__=="__main__":
 
     
     with mlflow.start_run(run_name="TrainingPipeline") as parent_run:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         with mlflow.start_run(run_name="XGBRegressor", nested=True):
             # Train
             model.fit(x_train, y_train)
@@ -151,7 +151,7 @@ if __name__=="__main__":
             mlflow.log_metric("r2_score", r2)
             
             signature = infer_signature(x_test, y_pred)
-            mlflow.sklearn.log_model(model, "xgb_model", signature=signature, input_example=x_test.iloc[:1])
+            mlflow.sklearn.log_model(model, artifact_path="model", signature=signature, input_example=x_test.iloc[:1])
             
             # Log encoders
             mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
@@ -159,13 +159,14 @@ if __name__=="__main__":
             
             
             # Save model locally with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
             local_model_path = f"models/xgb_model_{timestamp}.pkl"
             
             joblib.dump(model, local_model_path)
             
         
         with mlflow.start_run(run_name="H2OAutoML", nested=True):
+            
             mlflow.log_param("model_type", "H2OAutoML")
             mlflow.log_param("train_size", len(x_train))
             mlflow.log_metric("rmse", rmse_h2o)
@@ -213,9 +214,7 @@ if __name__=="__main__":
 
         shutil.copy(local_model_path, "best_model/best_model.pkl")
 
-    # Log selected model to MLflow
-    mlflow.set_tag("selected_model", best_model_type)
-    mlflow.log_artifact("best_model/model_metadata.json")
+
 
     # Save metadata
     metadata = {
@@ -223,8 +222,14 @@ if __name__=="__main__":
         "r2_score": max(r2, r2_h2o),
         "timestamp": timestamp
     }
-    with open("best_model/model_metadata.json", "w") as f:
+    metadata_path = "best_model/model_metadata.json"
+    with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=4)
+
+    # Log selected model and metadata
+    with mlflow.start_run(run_name="LogMetadata", nested=True):
+        mlflow.set_tag("selected_model", best_model_type)
+        mlflow.log_artifact(metadata_path)
 
     # Shutdown H2O
     h2o.shutdown(prompt=False)
