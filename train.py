@@ -42,6 +42,10 @@ def load_data(path:Path) -> pd.DataFrame:
 
 
 def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
+    
+    if 'updated_at' in df.columns:
+        df=df.drop(columns=['updated_at'])
+    
     ohe_cols = ['transmission', 'fuelType']
 
     # Load pre-trained OneHotEncoder
