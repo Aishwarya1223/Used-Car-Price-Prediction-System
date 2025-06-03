@@ -35,8 +35,19 @@ Resources:
           yum update -y
           yum install -y docker git
           service docker start
-          usermod -a -G docker ec2-user
-          su - ec2-user -c "mkdir ~/app && cd ~/app && git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System.git . && docker build -t used-car-predict-app . && docker run -d -p 8501:8501 used-car-predict-app"
+          usermod -aG docker ec2-user
+
+          # Switch to ec2-user and run your setup
+          echo "cd ~
+          git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app
+          cd app
+          docker build -t used-car-predict-app .
+          docker run -d -p 8501:8501 used-car-predict-app
+          " > /home/ec2-user/start.sh
+
+          chmod +x /home/ec2-user/start.sh
+          chown ec2-user:ec2-user /home/ec2-user/start.sh
+          sudo -u ec2-user bash /home/ec2-user/start.sh
   MyEIP:
     Type: AWS::EC2::EIP
     Properties:
