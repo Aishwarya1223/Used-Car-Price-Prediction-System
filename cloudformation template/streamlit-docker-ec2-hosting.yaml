@@ -29,6 +29,12 @@ Resources:
       KeyName: !Ref KeyName
       SecurityGroups: [!Ref StreamlitSecurityGroup]
       ImageId: ami-0c02fb55956c7d316  # Amazon Linux 2 AMI (us-east-1)
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 30  # <-- Increase root volume size to 20 GB
+            VolumeType: gp2
+            DeleteOnTermination: true
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -51,8 +57,14 @@ Resources:
           fi
 
           # Build and run the app container
-          docker stop \$(docker ps -q) || true
-          docker rm \$(docker ps -aq) || true
+          if [ "$(docker ps -q)" ]; then
+            docker stop $(docker ps -q)
+          fi
+
+          if [ "$(docker ps -aq)" ]; then
+            docker rm $(docker ps -aq)
+          fi
+
           docker build -t used-car-predict-app .
           docker run -d -p 8501:8501 used-car-predict-app
           " > /home/ec2-user/start.sh
