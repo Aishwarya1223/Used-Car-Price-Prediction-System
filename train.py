@@ -65,12 +65,14 @@ if __name__ == "__main__":
         exit()
 
     df_processed = preprocessing(df)
+
     x = df_processed.drop('price', axis=1)
     y = df_processed['price']
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
     # Save feature order used during training
+    
     with open("picklefile_preprocessors/feature_names.pkl", "wb") as f:
-        pickle.dump(x_train.columns.tolist(), f)
+        pickle.dump(list(x_train.columns), f)
 
     model = joblib.load('models/best_xgb_model.pkl')
 
