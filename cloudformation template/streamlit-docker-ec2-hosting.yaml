@@ -32,15 +32,27 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+
           yum update -y
           yum install -y docker git
           service docker start
           usermod -aG docker ec2-user
 
-          # Switch to ec2-user and run your setup
-          echo "cd ~
-          git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app
-          cd app
+          echo "cd /home/ec2-user
+
+          # If app folder already exists, pull latest changes
+          if [ -d app/.git ]; then
+            cd app
+            git pull origin main
+          else
+            git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app
+            cd app
+          fi
+
+          # Build and run the app container
+          docker stop \$(docker ps -q) || true
+          docker rm \$(docker ps -aq) || true
           docker build -t used-car-predict-app .
           docker run -d -p 8501:8501 used-car-predict-app
           " > /home/ec2-user/start.sh
@@ -48,11 +60,12 @@ Resources:
           chmod +x /home/ec2-user/start.sh
           chown ec2-user:ec2-user /home/ec2-user/start.sh
           sudo -u ec2-user bash /home/ec2-user/start.sh
+
   MyEIP:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref StreamlitInstance
-      
+
 Outputs:
   InstancePublicIP:
     Description: Public IP of the EC2 instance
