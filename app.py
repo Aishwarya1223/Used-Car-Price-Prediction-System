@@ -16,9 +16,8 @@ def load_encoders():
         ohe = pickle.load(f)
     with open(TARGET_ENCODER_PATH, "rb") as f:
         target_encoder = pickle.load(f)
-    with open(FEATURE_NAMES_PATH, "rb") as f:
-        feature_names = pickle.load(f)
-    return ohe, target_encoder, feature_names
+
+    return ohe, target_encoder
 
 def preprocess_input(df: pd.DataFrame, ohe, target_encoder) -> pd.DataFrame:
     ohe_cols = ['transmission', 'fuelType']
@@ -85,27 +84,24 @@ if page == "🏠 Home":
 
     # --- Predict Button ---
     if st.button('🔍 Predict Price'):
-        input_data = {
-            "brand": brand,
-            "model": model,
-            "year": year,
-            "mileage": mileage,
-            "engineSize": engine_size,
-            "transmission": transmission,
-            "fuelType": fuel_type,
-            "tax": tax,
-            "mpg": mpg
-        }
-
-        input_df = pd.DataFrame([input_data])
-
+        input_df = pd.DataFrame([{
+        'model': model,
+        'year': year,
+        'transmission': transmission,
+        'mileage': mileage,
+        'fuelType': fuel_type,
+        'tax': tax,
+        'mpg': mpg,
+        'engineSize': engine_size,
+        'brand': brand
+        }])
+        
         # --- Load the Best Model ---
         
         model = joblib.load("best_model/best_model.pkl")  # or h2o.load_model()
-        ohe, target_encoder, feature_names = load_encoders()
+        ohe, target_encoder = load_encoders()
         input_df = preprocess_input(input_df, ohe, target_encoder)
         
-        input_df = input_df[feature_names]  # Align order exactly
         prediction = model.predict(input_df)[0]
 
         st.markdown("---")
@@ -122,19 +118,36 @@ elif page == "ℹ️ About":
     st.markdown(
         """
         <h1 style='text-align: center;'>ℹ️ About</h1>
-        <p style='text-align: center;'>This app was built by <b>Aishwarya R</b> as a portfolio project.</p>
+        <p style='text-align: center;'>This project was built by <b>Aishwarya R</b> as part of a production-grade MLOps learning journey.</p>
+
+        ### 🧠 What It Does
+        - Predicts the resale price of a used car based on specs like model, year, mileage, transmission, fuel type, and engine size.
+        - Uses a trained machine learning model to make real-time predictions.
+
+        ### 🛠️ Tech Stack
+        - **Machine Learning**: XGBoost, Deep Learning (ANN), H2O AutoML, Optuna (for hyperparameter tuning)
+        - **Deployment**: Docker, Streamlit, EC2 (via AWS CloudFormation)
+        - **CI/CD**: Weekly model retraining via GitHub Actions
+        - **MLOps**: MLflow for model tracking, preprocessor versioning, automatic best model selection
+
+        ### 🔄 Real-Time Automation
+        - Automatically loads latest best-performing model from retraining pipeline
+        - Uses OneHot + TargetEncoding for preprocessing based on stored encoders
+        - Ensures feature alignment and consistent prediction pipeline
+
+        ### 📦 Reproducible & Portable
+        - Entire app is containerized with Docker
+        - Can be deployed on any machine or EC2 instance in one click using CloudFormation
+
+        ### 📍 Repository
+        - [GitHub: Used Car Price Prediction System](https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System)
+
+        ---
+        <p style='text-align: center;'>Made with ❤️ and MLOps by <b>Aishwarya R</b></p>
+        🌐 GitHub: [Used Car Price Prediction System](https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System)
         """,
         unsafe_allow_html=True
     )
-    st.markdown("""
-    ### 🔧 Features:
-    - Real-time car price prediction  
-    - Auto model selection via CI/CD  
-    - Dockerized with Streamlit UI  
-    - Retrains weekly using GitHub Actions
-
-    🌐 GitHub: [Used Car Price Prediction System](https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System)
-    """)
 
 # --- Footer ---
 st.markdown("---")
