@@ -35,11 +35,11 @@ Resources:
             VolumeSize: 30  # <-- Increase root volume size to 20 GB
             VolumeType: gp2
             DeleteOnTermination: true
-      UserData:
-        Fn::Base64: !Sub |
+      UserData: |
           #!/bin/bash
           exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
-
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
           yum update -y
           yum install -y docker git
           service docker start
