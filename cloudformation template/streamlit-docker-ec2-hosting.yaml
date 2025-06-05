@@ -7,7 +7,7 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
   AMIImage:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
 Resources:
 
@@ -38,7 +38,8 @@ Resources:
             VolumeSize: 30
             VolumeType: gp2
             DeleteOnTermination: true
-      UserData: |
+      UserData: 
+        Fn::Base64: !Sub |
           #!/bin/bash
           exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
           set -e

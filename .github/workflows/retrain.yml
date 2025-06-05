@@ -2,9 +2,9 @@ name: Auto Retrain Model
 
 on:
   push:
-    branch: [main]
+    branches: [main]
   schedule:
-    - cron: "0 0 * * SUN" # Every Sunday at midnight UTC
+    - cron: "0 0 * * SUN"  # Every Sunday at midnight UTC
   workflow_dispatch:
 
 jobs:
@@ -37,9 +37,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
           pip install --no-cache-dir https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.46.0.7-py2.py3-none-any.whl
+          pip install dvc[dagshub]  # or [s3]/[gdrive] depending on your remote
 
       - name: Export MySQL env variables
         run: |
@@ -51,25 +52,33 @@ jobs:
 
       - name: Insert data into MySQL via script
         run: python connect_to_sql.py
-      - name: Set MLflow tracking URI
+
+      - name: Train model and log to MLflow
         env:
           MLFLOW_TRACKING_URI: http://<your-mlflow-server>:5000
         run: python train2.py
 
-      - name: Run Training Script
-        run: python train2.py
+      - name: Track best model with DVC
+        run: |
+          dvc add models/best_model.pkl
 
       - name: Configure Git
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      - name: Push changes
+      - name: Commit DVC metadata
+        run: |
+          git add models/best_model.pkl.dvc dvc.lock
+          git diff --cached --quiet || git commit -m "Auto: update best_model.pkl on $(date -u +'%Y-%m-%d %H:%M:%S')"
+
+      - name: Push Git changes to GitHub
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}
-          git add best_model/
-          git diff --cached --quiet || git commit -m "Auto-retrained best model at $(date -u +"%Y-%m-%d %H:%M:%S")"
           git push origin main
 
+      - name: Push model to DVC remote
+        run: |
+          dvc push

@@ -1,0 +1,5 @@
+outs:
+- md5: 09c2afbe81693a189f6d6dc380998325
+  size: 16896
+  hash: md5
+  path: best_model_autokeras.h5
