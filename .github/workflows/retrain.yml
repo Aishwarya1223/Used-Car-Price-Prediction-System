@@ -1,6 +1,8 @@
 name: Auto Retrain Model
 
 on:
+  push:
+    branch: [main]
   schedule:
     - cron: "0 0 * * SUN" # Every Sunday at midnight UTC
   workflow_dispatch:
@@ -49,9 +51,13 @@ jobs:
 
       - name: Insert data into MySQL via script
         run: python connect_to_sql.py
+      - name: Set MLflow tracking URI
+        env:
+          MLFLOW_TRACKING_URI: http://<your-mlflow-server>:5000
+        run: python train2.py
 
       - name: Run Training Script
-        run: python train.py
+        run: python train2.py
 
       - name: Configure Git
         run: |
