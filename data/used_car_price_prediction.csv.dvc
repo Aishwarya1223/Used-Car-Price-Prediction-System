@@ -1,0 +1,5 @@
+outs:
+- md5: 2fc42d957e7909d18f9547bf7fde900d
+  size: 6554459
+  hash: md5
+  path: used_car_price_prediction.csv
