@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 import pickle
 from mlflow.models.signature import infer_signature
+import subprocess
 
 # Load environment variables
 load_dotenv()
@@ -233,3 +234,19 @@ if __name__=="__main__":
 
     # Shutdown H2O
     h2o.shutdown(prompt=False)
+
+    # Track the best model with DVC
+    print("Tracking best_model.pkl with DVC...")
+    try:
+        subprocess.run(["dvc", "add", "best_model/best_model.pkl"], check=True)
+
+        # Stage and commit DVC metadata
+        subprocess.run(["git", "add", "best_model/best_model.pkl.dvc", "dvc.lock"], check=True)
+        subprocess.run(["git", "commit", "-m", f"Auto: DVC tracked best model at {timestamp}"], check=True)
+
+        # Push model to DVC remote
+        subprocess.run(["dvc", "push"], check=True)
+
+        print("DVC tracking and push completed.")
+    except subprocess.CalledProcessError as e:
+        print(f"DVC tracking failed: {e}")

@@ -53,6 +53,9 @@ jobs:
       - name: Insert data into MySQL via script
         run: python connect_to_sql.py
 
+      - name: Pull models and data from DVC remote
+        run: dvc pull
+        
       - name: Train model and log to MLflow
         env:
           MLFLOW_TRACKING_URI: http://23.21.210.97:5000
