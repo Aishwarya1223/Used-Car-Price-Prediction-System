@@ -5,6 +5,7 @@ on:
     workflows: ["Auto Retrain Model"]
     types:
       - completed
+  workflow_dispatch: 
 
 jobs:
   deploy:
