@@ -55,10 +55,10 @@ jobs:
 
       - name: Pull models and data from DVC remote
         run: dvc pull
-        
+
       - name: Train model and log to MLflow
         env:
-          MLFLOW_TRACKING_URI: http://23.21.210.97:5000
+          MLFLOW_TRACKING_URI: http://100.29.124.53:5000
         run: python train2.py
 
       - name: Track best model with DVC

@@ -7,9 +7,31 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
   AMIImage:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Default: /aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id
 
 Resources:
+  AdminUser:
+      Type: AWS::IAM::User
+      Properties:
+        UserName: admin-project-user
+        Path: '/'
+  AdminPolicyAttachment:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: AdminUserPolicy
+      Users:
+        - !Ref AdminUser
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action: "*"
+            Resource: "*"
+            
+  AdminAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref AdminUser
 
   StreamlitSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -40,87 +62,92 @@ Resources:
       KeyName: !Ref KeyName
       SecurityGroups: [!Ref StreamlitSecurityGroup]
       ImageId: !Ref AMIImage
+      IamInstanceProfile: !Ref MLflowInstanceProfile
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeSize: 30
             VolumeType: gp2
             DeleteOnTermination: true
-      UserData: 
+      Tags:
+        - Key: Name
+          Value: streamlit-mlflow-server
+      UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
           set -e
           export DEBIAN_FRONTEND=noninteractive
-          yum update -y
-          yum install -y python3 python-is-python3 python3-venv curl unzip nginx docker git
 
-          service docker start
-          usermod -aG docker ec2-user
+          # Install dependencies
+          apt-get update -y
+          apt-get install -y python3 python3-pip python-is-python3 python3-venv curl unzip nginx docker.io git awscli jq
 
-          # Create mlflow-folder and a virtual environment inside it
-          mkdir -p /home/ubuntu/mlflow-folder
-          cd /home/ubuntu/mlflow-folder
-          python3 -m venv venv
+          # Start Docker and add ubuntu user
+          systemctl start docker
+          usermod -aG docker ubuntu
 
-          # Activate the virtual environment
-          source venv/bin/activate
+          # Create common virtual environment
+          python3 -m venv /home/ubuntu/venv
+          chown -R ubuntu:ubuntu /home/ubuntu/venv
+          source /home/ubuntu/venv/bin/activate
 
-          # Upgrade pip and install required packages
+          # Upgrade pip and install common packages
           pip install --upgrade pip
-          pip install virtualenv awscli boto3
+          pip install virtualenv awscli boto3 "dvc[s3]" --break-system-packages
           pip install --force-reinstall blinker
 
-          echo "Installing MLflow..." | tee -a /home/ubuntu/mlflow-folder/pip-install.log
-          pip install "mlflow[extras]" 2>&1 | tee -a /home/ubuntu/mlflow-folder/pip-install.log
+          # Get AWS secrets for MLflow
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id ${AWS::StackName}-AdminUserAccessKeys \
+            --region ${AWS::Region} \
+            --query SecretString \
+            --output text)
 
-          
-          # Create working directory for MLflow artifacts
-          mkdir -p /home/ubuntu/mlflow-folder/tracking
+          export AWS_ACCESS_KEY_ID=$(echo $SECRET_JSON | jq -r .AccessKeyId)
+          export AWS_SECRET_ACCESS_KEY=$(echo $SECRET_JSON | jq -r .SecretAccessKey)
 
-          # Start MLflow server in background with nohup
-          nohup /home/ubuntu/mlflow-folder/venv/bin/mlflow server \
+          echo "Installing MLflow..." | tee -a /home/ubuntu/mlflow.log
+          pip install mlflow[extras] --break-system-packages 2>&1 | tee -a /home/ubuntu/mlflow.log
+
+          # Start MLflow server
+          nohup /home/ubuntu/venv/bin/mlflow server \
             --host 0.0.0.0 \
             --port 5000 \
             --default-artifact-root s3://mlflow-tracker-s3 \
-            --backend-store-uri sqlite:///mlflow.db > /home/ubuntu/mlflow-folder/mlflow.log 2>&1 &
+            --backend-store-uri sqlite:///mlflow.db > /home/ubuntu/mlflow-server.log 2>&1 &
 
-          echo "MLflow setup completed." | tee /home/ubuntu/mlflow-folder/userdata-status.txt
+          echo "MLflow server started." | tee -a /home/ubuntu/status.log
 
-
-          echo "cd /home/ec2-user
-
-          # If app folder already exists, pull latest changes
+          # Clone or pull app code
+          cd /home/ubuntu
           if [ -d app/.git ]; then
-            cd app
-            git pull origin main
+            cd app && git pull origin main
           else
-            git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app
-            cd app
+            git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app && cd app
           fi
 
-          # Build and run the app container
-          if [ "$(docker ps -q)" ]; then
-            docker stop $(docker ps -q)
-          fi
+          source /home/ubuntu/venv/bin/activate
+          cd app
+          # DVC pull
+          chown -R ubuntu:ubuntu /home/ubuntu/app/.dvc
+          dvc pull
 
-          if [ "$(docker ps -aq)" ]; then
-            docker rm $(docker ps -aq)
-          fi
-
+          # Docker build and run
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -aq) || true
           docker build -t used-car-predict-app .
           docker run -d -p 8501:8501 used-car-predict-app
-          " > /home/ec2-user/start.sh
 
-          chmod +x /home/ec2-user/start.sh
-          chown ec2-user:ec2-user /home/ec2-user/start.sh
-          sudo -u ec2-user bash /home/ec2-user/start.sh
+
+      
 
   MyEIP:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref StreamlitInstance
 
+      
   MlflowEC2Role:
     Type: AWS::IAM::Role
     Properties: 
@@ -145,6 +172,27 @@ Resources:
                 Resource:
                 - !Sub arn:aws:s3:::mlflow-tracker-s3
                 - !Sub arn:aws:s3:::mlflow-tracker-s3/*
+        - PolicyName: SecretAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref StoreAdminSecret
+  StoreAdminSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AWS::StackName}-AdminUserAccessKeys"
+      Description: "Access keys for admin-user"
+      SecretString: !Sub |
+        {
+          "AccessKeyId": "${AdminAccessKey}",
+          "SecretAccessKey": "${AdminAccessKey.SecretAccessKey}"
+        }
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
   MLflowInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:

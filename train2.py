@@ -81,7 +81,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__=="__main__":
     
-    mlflow.set_tracking_uri("http://23.21.210.97:5000")
+    mlflow.set_tracking_uri("http://100.29.124.53:5000")
 
 
     
