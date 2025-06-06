@@ -128,9 +128,11 @@ Resources:
           fi
 
           source /home/ubuntu/venv/bin/activate
-          cd app
+
           # DVC pull
+          chown -R ubuntu:ubuntu /home/ubuntu/app
           chown -R ubuntu:ubuntu /home/ubuntu/app/.dvc
+          git config --global --add safe.directory /home/ubuntu/app
           dvc pull
 
           # Docker build and run
