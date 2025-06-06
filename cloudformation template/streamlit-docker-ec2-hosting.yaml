@@ -24,6 +24,14 @@ Resources:
           FromPort: 8501
           ToPort: 8501
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
 
   StreamlitInstance:
     Type: AWS::EC2::Instance
@@ -45,9 +53,40 @@ Resources:
           set -e
           export DEBIAN_FRONTEND=noninteractive
           yum update -y
-          yum install -y docker git
+          yum install -y python3 python-is-python3 python3-venv curl unzip nginx docker git
+
           service docker start
           usermod -aG docker ec2-user
+
+          # Create mlflow-folder and a virtual environment inside it
+          mkdir -p /home/ubuntu/mlflow-folder
+          cd /home/ubuntu/mlflow-folder
+          python3 -m venv venv
+
+          # Activate the virtual environment
+          source venv/bin/activate
+
+          # Upgrade pip and install required packages
+          pip install --upgrade pip
+          pip install virtualenv awscli boto3
+          pip install --force-reinstall blinker
+
+          echo "Installing MLflow..." | tee -a /home/ubuntu/mlflow-folder/pip-install.log
+          pip install "mlflow[extras]" 2>&1 | tee -a /home/ubuntu/mlflow-folder/pip-install.log
+
+          
+          # Create working directory for MLflow artifacts
+          mkdir -p /home/ubuntu/mlflow-folder/tracking
+
+          # Start MLflow server in background with nohup
+          nohup /home/ubuntu/mlflow-folder/venv/bin/mlflow server \
+            --host 0.0.0.0 \
+            --port 5000 \
+            --default-artifact-root s3://mlflow-tracker-s3 \
+            --backend-store-uri sqlite:///mlflow.db > /home/ubuntu/mlflow-folder/mlflow.log 2>&1 &
+
+          echo "MLflow setup completed." | tee /home/ubuntu/mlflow-folder/userdata-status.txt
+
 
           echo "cd /home/ec2-user
 
@@ -81,6 +120,49 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref StreamlitInstance
+
+  MlflowEC2Role:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: '/'
+      Policies:
+        - PolicyName: MlflowS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement: 
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                - !Sub arn:aws:s3:::mlflow-tracker-s3
+                - !Sub arn:aws:s3:::mlflow-tracker-s3/*
+  MLflowInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref MlflowEC2Role]
+
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: mlflow-tracker-s3
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+    
 
 Outputs:
   InstancePublicIP:

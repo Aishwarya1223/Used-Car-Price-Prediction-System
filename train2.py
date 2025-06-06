@@ -80,7 +80,7 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__=="__main__":
     
-    mlflow.set_tracking_uri("http://<your-ec2-public-ip>:5000")
+    mlflow.set_tracking_uri("http://23.21.210.97:5000")
 
 
     
