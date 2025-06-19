@@ -58,66 +58,6 @@ Resources:
 
   StreamlitInstance:
     Type: AWS::EC2::Instance
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          packages:
-            apt:
-              python3: []
-              python3-pip: []
-              python3-venv: []
-              docker.io: []
-              unzip: []
-              nginx: []
-              git: []
-              jq: []
-              curl: []
-          commands:
-            01_start_docker:
-              command: |
-                systemctl enable docker
-                systemctl start docker
-                usermod -aG docker ubuntu
-                
-            02_create_python_venv_and_deps:
-              command: |
-                python3 -m venv /home/ubuntu/mlflow-folder/ml-env
-                /home/ubuntu/mlflow-folder/ml-env/bin/pip install --upgrade pip
-                /home/ubuntu/mlflow-folder/ml-env/bin/pip install \
-                  mlflow boto3 pandas scikit-learn 'dvc[gs,s3]'
-          files:
-            /etc/systemd/system/mlflow.service:
-              mode: '000644'
-              owner: root
-              group: root
-              content: |
-                [Unit]
-                Description=MLflow Tracking Server
-                After=network.target
-
-                [Service]
-                User=ubuntu
-                ExecStart=/home/ubuntu/mlflow-folder/.venv/bin/mlflow server \
-                --backend-store-uri sqlite:////home/ubuntu/mlflow.db \
-                --default-artifact-root s3://mlflow-tracker-s3 \
-                --host 0.0.0.0 --port 5000
-
-                WorkingDirectory=/home/ubuntu
-                Restart=always
-                StandardOutput=append:/home/ubuntu/mlflow.log
-                StandardError=append:/home/ubuntu/mlflow.log
-
-                [Install]
-                WantedBy=multi-user.target
-          services:
-            sysvinit:
-              docker:
-                enabled: true
-                ensureRunning: true
-            systemd:
-              mlflow:
-                enabled: true
-                ensureRunning: true
     Properties:
       InstanceType: t2.micro
       KeyName: !Ref KeyName
@@ -137,72 +77,80 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
-          set -xe
+          set -e
           export DEBIAN_FRONTEND=noninteractive
 
+          # Update and install dependencies
           apt-get update -y
-          apt-get install -y python3 python3-venv python3-pip git docker.io unzip jq curl
+          apt-get install -y python3 python3-pip python-is-python3 python3-venv docker.io curl unzip nginx git awscli jq
 
-          pip3 install --upgrade pip
-          python3 -m pip install --upgrade pip
-
-          mkdir -p /home/ubuntu/mlflow-folder
-          chown ubuntu:ubuntu /home/ubuntu/mlflow-folder
-          chmod 755 /home/ubuntu/mlflow-folder
-
-          python3 -m venv /home/ubuntu/mlflow-folder/.venv
-          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/.venv
-
-          /home/ubuntu/mlflow-folder/.venv/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]
-          
-          /home/ubuntu/mlflow-folder/.venv/bin/pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-          mkdir -p /opt/aws/bin
-          ln -sf /usr/local/bin/cfn-init   /opt/aws/bin/cfn-init
-          ln -sf /usr/local/bin/cfn-signal /opt/aws/bin/cfn-signal
-          
-          export PATH=$PATH:/opt/aws/bin
-
-          /opt/aws/bin/cfn-init -v \
-            --stack    ${AWS::StackName} \
-            --resource StreamlitInstance \
-            --region   ${AWS::Region}
-
-          # 3. Post-init host tweaks that aren't worth putting in Metadata
-          systemctl daemon-reload
+          systemctl enable docker
+          systemctl start docker
+          sleep 5
           systemctl restart docker
-          systemctl enable  mlflow
-          systemctl restart mlflow
+          usermod -aG docker ubuntu
+          
+          # Create mlflow-folder and a virtual environment inside it
+          mkdir -p /home/ubuntu/mlflow-folder
+          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder
+
+          python3 -m venv /home/ubuntu/mlflow-folder/venv
+          
+          # Upgrade pip and install required packages
+          /home/ubuntu/mlflow-folder/venv/bin/pip install --upgrade pip
 
 
-          # Fetch secret
+          /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 dvc[gs,s3] 
+
+          #pip install --force-reinstall blinker
+
           SECRET_JSON=$(aws secretsmanager get-secret-value \
-            --secret-id ${AWS::StackName}-AdminUserAccessKeys \
+            --secret-id AdminUserAccessKeys \
             --region ${AWS::Region} \
             --query SecretString --output text)
 
           export AWS_ACCESS_KEY_ID=$(echo $SECRET_JSON | jq -r .AccessKeyId)
           export AWS_SECRET_ACCESS_KEY=$(echo $SECRET_JSON | jq -r .SecretAccessKey)
 
-          # Clone app
-          cd /home/ubuntu/mlflow-folder
-          if [ -d app/.git ]; then
-            cd app && git pull origin main
+          echo "Installing MLflow..." | tee -a /home/ubuntu/mlflow-folder/pip-install.log
+          /home/ubuntu/mlflow-folder/venv/bin/pip install mlflow
+
+          # Create working directory for MLflow artifacts
+          mkdir -p /home/ubuntu/mlflow-folder/tracking
+
+          # Start MLflow server in background with nohup 
+
+          nohup /home/ubuntu/mlflow-folder/venv/bin/mlflow server \
+            --host 0.0.0.0 \
+            --port 5000 \
+            --default-artifact-root s3://mlflow-tracker-s3 \
+            --backend-store-uri sqlite:////home/ubuntu/mlflow-folder/mlflow.db \
+            > /home/ubuntu/mlflow-folder/mlflow.log 2>&1 &
+
+
+          echo "MLflow setup completed." | tee /home/ubuntu/mlflow-folder/userdata-status.txt
+       
+          if [ -d /home/ubuntu/mlflow-folder/app/.git ]; then
+            git -C /home/ubuntu/mlflow-folder/app pull origin main
           else
-            git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app && cd app
+            git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System /home/ubuntu/mlflow-folder/app
           fi
+
 
           chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/app
           git config --global --add safe.directory /home/ubuntu/mlflow-folder/app
 
           # Pull DVC data
-          /home/ubuntu/mlflow-folder/ml-env/bin/dvc pull
+          /home/ubuntu/mlflow-folder/venv/bin/dvc pull
 
           # Build and run Streamlit app
-          cd /home/ubuntu/mlflow-folder/app
-          docker build -t used-car-predict-app .
-          docker run -d -p 8501:8501 --restart=always used-car-predict-app
+          docker build -t used-car-predict-app /home/ubuntu/mlflow-folder/app
+          docker run -d -p 8501:8501 --restart=always \
+            -w /app \
+            -v /home/ubuntu/mlflow-folder/app:/app \
+            used-car-predict-app
 
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource StreamlitInstance --region ${AWS::Region}
+          echo "Streamlit app running successfully" | tee /home/ubuntu/mlflow-folder/userdata-status.txt
 
 
   MyEIP:
