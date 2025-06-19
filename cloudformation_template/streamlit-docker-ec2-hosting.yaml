@@ -96,14 +96,16 @@ Resources:
           chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder
 
           python3 -m venv /home/ubuntu/mlflow-folder/venv
-          
+
+          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/venv
+
           # Upgrade pip and install required packages
           /home/ubuntu/mlflow-folder/venv/bin/pip install --upgrade pip
 
           /home/ubuntu/mlflow-folder/venv/bin/pip install --force-reinstall blinker
 
-          /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 dvc[gs,s3] mlflow[extras] \
-            2>&1 | tee -a /home/ubuntu/mlflow-folder/pip-install.log
+          /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 "dvc[dagshub,s3]" "mlflow[extras]" \
+          2>&1 | tee -a /home/ubuntu/mlflow-folder/pip-install.log
 
 
         
