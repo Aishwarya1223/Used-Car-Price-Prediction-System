@@ -139,11 +139,21 @@ Resources:
           export DEBIAN_FRONTEND=noninteractive
 
           apt-get update -y
+          apt-get install -y python3-pip
+          pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
 
           /opt/aws/bin/cfn-init -v \
             --stack ${AWS::StackName} \
             --resource StreamlitInstance \
             --region ${AWS::Region}
+
+          INIT_EXIT_CODE=$?
+
+          /opt/aws/bin/cfn-signal -e $INIT_EXIT_CODE \
+            --stack ${AWS::StackName} \
+            --resource StreamlitInstance \
+            --region ${AWS::Region}
+
 
           SECRET_JSON=$(aws secretsmanager get-secret-value \
             --secret-id ${AWS::StackName}-AdminUserAccessKeys \
