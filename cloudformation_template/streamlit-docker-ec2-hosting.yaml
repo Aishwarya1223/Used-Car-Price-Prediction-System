@@ -155,11 +155,12 @@ Resources:
 
           /home/ubuntu/mlflow-folder/.venv/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]
           
-          pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          /home/ubuntu/mlflow-folder/.venv/bin/pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
           mkdir -p /opt/aws/bin
           ln -sf /usr/local/bin/cfn-init   /opt/aws/bin/cfn-init
           ln -sf /usr/local/bin/cfn-signal /opt/aws/bin/cfn-signal
           
+          export PATH=$PATH:/opt/aws/bin
 
           /opt/aws/bin/cfn-init -v \
             --stack    ${AWS::StackName} \
