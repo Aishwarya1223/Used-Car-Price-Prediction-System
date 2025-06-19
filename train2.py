@@ -81,9 +81,10 @@ def preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__=="__main__":
     
-    mlflow.set_tracking_uri("http://100.29.124.53:5000")
-
-
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not mlflow_uri:
+        raise ValueError("MLFLOW_TRACKING_URI environment variable not set.")
+    mlflow.set_tracking_uri(mlflow_uri)
     
     nrows = df.shape[0]
     if nrows >= 20:

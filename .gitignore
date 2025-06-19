@@ -12,3 +12,4 @@ __pycache__/
 *.db
 .pytest_cache
 .DS_Store
+extra_script.txt
