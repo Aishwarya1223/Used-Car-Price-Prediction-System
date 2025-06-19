@@ -99,10 +99,12 @@ Resources:
           # Upgrade pip and install required packages
           /home/ubuntu/mlflow-folder/venv/bin/pip install --upgrade pip
 
+          /home/ubuntu/mlflow-folder/venv/bin/pip install --force-reinstall blinker
 
-          /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 dvc[gs,s3] 
+          /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 dvc[gs,s3] mlflow[extras] \
+          >> /home/ubuntu/mlflow-folder/pip-install.log 2>&1
 
-          #pip install --force-reinstall blinker
+          
 
           SECRET_JSON=$(aws secretsmanager get-secret-value \
             --secret-id AdminUserAccessKeys \
@@ -113,8 +115,7 @@ Resources:
           export AWS_SECRET_ACCESS_KEY=$(echo $SECRET_JSON | jq -r .SecretAccessKey)
 
           echo "Installing MLflow..." | tee -a /home/ubuntu/mlflow-folder/pip-install.log
-          /home/ubuntu/mlflow-folder/venv/bin/pip install mlflow
-
+          
           # Create working directory for MLflow artifacts
           mkdir -p /home/ubuntu/mlflow-folder/tracking
 
@@ -124,8 +125,7 @@ Resources:
             --host 0.0.0.0 \
             --port 5000 \
             --default-artifact-root s3://mlflow-tracker-s3 \
-            --backend-store-uri sqlite:////home/ubuntu/mlflow-folder/mlflow.db \
-            > /home/ubuntu/mlflow-folder/mlflow.log 2>&1 &
+            --backend-store-uri sqlite:///mlflow.db > /home/ubuntu/mlflow-folder/mlflow.log 2>&1 &
 
 
           echo "MLflow setup completed." | tee /home/ubuntu/mlflow-folder/userdata-status.txt
