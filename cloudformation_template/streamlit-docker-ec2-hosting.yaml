@@ -104,8 +104,7 @@ Resources:
           /home/ubuntu/mlflow-folder/venv/bin/pip install virtualenv boto3 dvc[gs,s3] mlflow[extras] \
           >> /home/ubuntu/mlflow-folder/pip-install.log 2>&1
 
-          
-
+        
           SECRET_JSON=$(aws secretsmanager get-secret-value \
             --secret-id AdminUserAccessKeys \
             --region ${AWS::Region} \
