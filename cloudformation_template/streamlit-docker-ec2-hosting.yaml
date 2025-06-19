@@ -11,23 +11,24 @@ Parameters:
 
 Resources:
   AdminUser:
-      Type: AWS::IAM::User
-      Properties:
-        UserName: admin-project-user
-        Path: '/'
+    Type: AWS::IAM::User
+    Properties:
+      UserName: admin-project-user
+      Path: '/'
+
   AdminPolicyAttachment:
     Type: AWS::IAM::Policy
-    Properties: 
+    Properties:
       PolicyName: AdminUserPolicy
       Users:
         - !Ref AdminUser
-      PolicyDocument: 
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: "Allow"
             Action: "*"
             Resource: "*"
-            
+
   AdminAccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
@@ -58,7 +59,6 @@ Resources:
   StreamlitInstance:
     Type: AWS::EC2::Instance
     Metadata:
-      Comment: Installing all the dependencies
       AWS::CloudFormation::Init:
         config:
           packages:
@@ -66,11 +66,7 @@ Resources:
               python3-pip: []
               python3-venv: []
               docker.io: []
-              git: []
-              nginx: []
-              jq: []
-              
-          commands: 
+          commands:
             01_start_docker:
               command: |
                 systemctl start docker
@@ -80,7 +76,7 @@ Resources:
               command: "python3 -m pip install --upgrade pip"
             03_create_venv:
               command: "python3 -m venv /home/ubuntu/ml-env"
-            03_install_mlflow:
+            04_install_mlflow:
               command: "/home/ubuntu/ml-env/bin/pip install mlflow boto3 pandas scikit-learn"
           files:
             /etc/systemd/system/mlflow.service:
@@ -96,7 +92,7 @@ Resources:
                 User=ubuntu
                 ExecStart=/home/ubuntu/ml-env/bin/mlflow server \
                   --backend-store-uri sqlite:////home/ubuntu/mlflow.db \
-                  --default-artifact-root s3://mlflow-tracking-bucket2025 \
+                  --default-artifact-root s3://mlflow-tracker-s3 \
                   --host 0.0.0.0 --port 5000
                 WorkingDirectory=/home/ubuntu
                 Restart=always
@@ -105,16 +101,15 @@ Resources:
 
                 [Install]
                 WantedBy=multi-user.target
-        services:
-          sysvinit:
-            docker:
-              enabled: true
-              ensureRunning: true
-          systemd:
-            mlflow:
-              enabled: true
-              ensureRunning: true
-            
+          services:
+            sysvinit:
+              docker:
+                enabled: true
+                ensureRunning: true
+            systemd:
+              mlflow:
+                enabled: true
+                ensureRunning: true
     Properties:
       InstanceType: t2.micro
       KeyName: !Ref KeyName
@@ -133,18 +128,17 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
           set -e
           export DEBIAN_FRONTEND=noninteractive
 
           apt-get update -y
           apt-get install -y unzip nginx git jq curl
+
           /opt/aws/bin/cfn-init -v \
             --stack ${AWS::StackName} \
             --resource StreamlitInstance \
             --region ${AWS::Region}
 
-          # Retrieve secret credentials
           SECRET_JSON=$(aws secretsmanager get-secret-value \
             --secret-id ${AWS::StackName}-AdminUserAccessKeys \
             --region ${AWS::Region} \
@@ -153,10 +147,7 @@ Resources:
 
           export AWS_ACCESS_KEY_ID=$(echo $SECRET_JSON | jq -r .AccessKeyId)
           export AWS_SECRET_ACCESS_KEY=$(echo $SECRET_JSON | jq -r .SecretAccessKey)
-          
 
-
-          echo "Cloning app repo..." | tee -a /home/ubuntu/status.log
           cd /home/ubuntu
           if [ -d app/.git ]; then
             cd app && git pull origin main
@@ -173,21 +164,16 @@ Resources:
           docker build -t used-car-predict-app .
           docker run -d -p 8501:8501 --restart=always used-car-predict-app
 
-          echo "Setup complete." | tee -a /home/ubuntu/status.log
-        
-          # cfn-init completed so signal success or not
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource StreamlitInstance --region ${AWS::Region}
 
-          
   MyEIP:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref StreamlitInstance
 
-      
   MlflowEC2Role:
     Type: AWS::IAM::Role
-    Properties: 
+    Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -200,15 +186,15 @@ Resources:
         - PolicyName: MlflowS3Access
           PolicyDocument:
             Version: '2012-10-17'
-            Statement: 
+            Statement:
               - Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                - !Sub arn:aws:s3:::mlflow-tracker-s3
-                - !Sub arn:aws:s3:::mlflow-tracker-s3/*
+                  - !Sub arn:aws:s3:::mlflow-tracker-s3
+                  - !Sub arn:aws:s3:::mlflow-tracker-s3/*
         - PolicyName: SecretAccessPolicy
           PolicyDocument:
             Version: "2012-10-17"
@@ -256,7 +242,6 @@ Resources:
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred
-    
 
 Outputs:
   InstancePublicIP:

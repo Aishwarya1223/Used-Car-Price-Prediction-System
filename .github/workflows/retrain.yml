@@ -66,7 +66,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy CloudFormation Stack
+      - name: Check if CloudFormation Stack Exists
+        id: check-stack
+        run: |
+          set -e
+          STACK_EXISTS=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --region $AWS_REGION 2>/dev/null || echo "STACK_DOES_NOT_EXIST")
+          if [[ "$STACK_EXISTS" == "STACK_DOES_NOT_EXIST" ]]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy CloudFormation Stack (Only if Not Exists)
+        if: steps.check-stack.outputs.exists == 'false'
         run: |
           aws cloudformation deploy \
             --stack-name $STACK_NAME \
@@ -76,7 +90,10 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides KeyName=used-car-project-keypair
 
-            aws cloudformation wait stack-create-complete \
+      - name: Wait for stack to complete (only if created)
+        if: steps.check-stack.outputs.exists == 'false'
+        run: |
+          aws cloudformation wait stack-create-complete \
             --stack-name $STACK_NAME \
             --region $AWS_REGION
 
