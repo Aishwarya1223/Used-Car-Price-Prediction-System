@@ -78,12 +78,8 @@ Resources:
                 systemctl start docker
                 systemctl enable docker
                 usermod -aG docker ubuntu
-            02_upgrade_pip:
-              command: "python3 -m pip install --upgrade pip"
-            03_create_venv:
-              command: "python3 -m venv /home/ubuntu/ml-env"
-            04_install_packages:
-              command: "/home/ubuntu/ml-env/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]"
+            02_install_packages:
+              command: "/home/ubuntu/mlflow-folder/ml-env/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]"
           files:
             /etc/systemd/system/mlflow.service:
               mode: '000644'
@@ -139,20 +135,31 @@ Resources:
           export DEBIAN_FRONTEND=noninteractive
 
           apt-get update -y
-          apt-get install -y python3-pip
-          pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          apt-get install -y python3.11 python3.11-venv python3.11-dev
 
-          /opt/aws/bin/cfn-init -v \
-            --stack ${AWS::StackName} \
-            --resource StreamlitInstance \
-            --region ${AWS::Region}
+          python3.11 -m pip install --upgrade pip
+          mkdir -p /home/ubuntu/mlflow-folder
+          chown ubuntu:ubuntu /home/ubuntu/mlflow-folder
+          chmod 755 /home/ubuntu/mlflow-folder
 
-          INIT_EXIT_CODE=$?
+          python3.11 -m venv /home/ubuntu/mlflow-folder/ml-env
+          source /home/ubuntu/mlflow-folder/ml-env/bin/activate
 
-          /opt/aws/bin/cfn-signal -e $INIT_EXIT_CODE \
-            --stack ${AWS::StackName} \
-            --resource StreamlitInstance \
-            --region ${AWS::Region}
+          pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+
+          cfn-init -v --stack ${AWS::StackName} --resource StreamlitInstance --configsets full_install --region ${AWS::Region}
+
+          #/opt/aws/bin/cfn-init -v \
+          #  --stack ${AWS::StackName} \
+          #  --resource StreamlitInstance \
+          #  --region ${AWS::Region}
+
+          #INIT_EXIT_CODE=$?
+
+          #/opt/aws/bin/cfn-signal -e $INIT_EXIT_CODE \
+          #  --stack ${AWS::StackName} \
+          #  --resource StreamlitInstance \
+          #  --region ${AWS::Region}
 
 
           SECRET_JSON=$(aws secretsmanager get-secret-value \
@@ -163,19 +170,20 @@ Resources:
           export AWS_ACCESS_KEY_ID=$(echo $SECRET_JSON | jq -r .AccessKeyId)
           export AWS_SECRET_ACCESS_KEY=$(echo $SECRET_JSON | jq -r .SecretAccessKey)
 
-          cd /home/ubuntu
+          cd /home/ubuntu/mlflow-folder/
           if [ -d app/.git ]; then
             cd app && git pull origin main
           else
             git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System app && cd app
           fi
-          chown -R ubuntu:ubuntu /home/ubuntu/app
-          git config --global --add safe.directory /home/ubuntu/app
+          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/app
 
-          /home/ubuntu/ml-env/bin/dvc pull
+          git config --global --add safe.directory /home/mlflow-folder/ubuntu/app
 
-          docker stop $(docker ps -q) || true
-          docker rm $(docker ps -aq) || true
+          /home/ubuntu/mlflow-folder/ml-env/bin/dvc pull
+
+          #docker stop $(docker ps -q) || true
+          #docker rm $(docker ps -aq) || true
           docker build -t used-car-predict-app .
           docker run -d -p 8501:8501 --restart=always used-car-predict-app
 
