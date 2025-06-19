@@ -97,7 +97,7 @@ Resources:
 
                 [Service]
                 User=ubuntu
-                ExecStart=/home/ubuntu/mlflow-folder/ml-env/bin/mlflow server \
+                ExecStart=/home/ubuntu/mlflow-folder/.venv/bin/mlflow server \
                 --backend-store-uri sqlite:////home/ubuntu/mlflow.db \
                 --default-artifact-root s3://mlflow-tracker-s3 \
                 --host 0.0.0.0 --port 5000
@@ -150,14 +150,10 @@ Resources:
           chown ubuntu:ubuntu /home/ubuntu/mlflow-folder
           chmod 755 /home/ubuntu/mlflow-folder
 
-          python3 -m venv /home/ubuntu/mlflow-folder/ml-env
-          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/ml-env
+          python3 -m venv /home/ubuntu/mlflow-folder/.venv
+          chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/.venv
 
-          /home/ubuntu/mlflow-folder/ml-env/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]
-
-          cd /home/ubuntu/mlflow-folder/app
-          docker build -t used-car-predict-app .
-          docker run -d -p 8501:8501 --restart=always used-car-predict-app
+          /home/ubuntu/mlflow-folder/.venv/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]
           
           pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
           mkdir -p /opt/aws/bin
