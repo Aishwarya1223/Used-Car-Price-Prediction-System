@@ -75,12 +75,16 @@ Resources:
           commands:
             01_start_docker:
               command: |
-                systemctl start docker
                 systemctl enable docker
+                systemctl start docker
                 usermod -aG docker ubuntu
                 
-            02_install_packages:
-              command: "/home/ubuntu/mlflow-folder/ml-env/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]"
+            02_create_python_venv_and_deps:
+              command: |
+                python3 -m venv /home/ubuntu/mlflow-folder/ml-env
+                /home/ubuntu/mlflow-folder/ml-env/bin/pip install --upgrade pip
+                /home/ubuntu/mlflow-folder/ml-env/bin/pip install \
+                  mlflow boto3 pandas scikit-learn 'dvc[gs,s3]'
           files:
             /etc/systemd/system/mlflow.service:
               mode: '000644'
@@ -137,28 +141,41 @@ Resources:
           export DEBIAN_FRONTEND=noninteractive
 
           apt-get update -y
-          apt-get install -y python3.11 python3.11-venv git docker.io unzip jq curl
+          apt-get install -y python3 python3-venv python3-pip git docker.io unzip jq curl
 
-          python3.11 -m pip install --upgrade pip
+          pip3 install --upgrade pip
+          python3 -m pip install --upgrade pip
 
           mkdir -p /home/ubuntu/mlflow-folder
           chown ubuntu:ubuntu /home/ubuntu/mlflow-folder
           chmod 755 /home/ubuntu/mlflow-folder
 
-          python3.11 -m venv /home/ubuntu/mlflow-folder/ml-env
+          python3 -m venv /home/ubuntu/mlflow-folder/ml-env
           chown -R ubuntu:ubuntu /home/ubuntu/mlflow-folder/ml-env
 
           /home/ubuntu/mlflow-folder/ml-env/bin/pip install mlflow boto3 pandas scikit-learn dvc[gs,s3]
 
-          # Optional: Install cfn-init manually if needed
-          /home/ubuntu/mlflow-folder/ml-env/bin/pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          ln -s /usr/local/bin/cfn-init /opt/aws/bin/cfn-init || true
+          cd /home/ubuntu/mlflow-folder/app
+          docker build -t used-car-predict-app .
+          docker run -d -p 8501:8501 --restart=always used-car-predict-app
+          
+          pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          mkdir -p /opt/aws/bin
+          ln -sf /usr/local/bin/cfn-init   /opt/aws/bin/cfn-init
+          ln -sf /usr/local/bin/cfn-signal /opt/aws/bin/cfn-signal
+          
 
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource StreamlitInstance --region ${AWS::Region}
-          systemctl daemon-reexec
+          /opt/aws/bin/cfn-init -v \
+            --stack    ${AWS::StackName} \
+            --resource StreamlitInstance \
+            --region   ${AWS::Region}
+
+          # 3. Post-init host tweaks that aren't worth putting in Metadata
           systemctl daemon-reload
-          systemctl enable mlflow
-          systemctl start mlflow
+          systemctl restart docker
+          systemctl enable  mlflow
+          systemctl restart mlflow
+
 
           # Fetch secret
           SECRET_JSON=$(aws secretsmanager get-secret-value \
