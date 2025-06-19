@@ -71,7 +71,7 @@ jobs:
           aws cloudformation deploy \
             --stack-name $STACK_NAME \
             --template-file $TEMPLATE_FILE \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \ \
             --region $AWS_REGION \
             --no-fail-on-empty-changeset \
             --parameter-overrides KeyName=used-car-project-keypair
