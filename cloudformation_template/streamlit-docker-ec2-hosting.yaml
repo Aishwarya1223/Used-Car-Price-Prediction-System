@@ -84,7 +84,9 @@ Resources:
 
           # Update and install dependencies
           apt-get update -y
-          apt-get install -y python3 python3-pip python-is-python3 python3-venv curl docker.io unzip nginx 
+          apt-get install -y python3 python3-pip python-is-python3 python3-venv \
+                   curl docker.io unzip nginx \
+                   build-essential python3-dev libffi-dev libssl-dev jq git
 
           systemctl enable docker
           systemctl start docker
@@ -102,7 +104,7 @@ Resources:
 
           # Upgrade pip and install required packages
           pip install --upgrade pip
-          pip install virtualenv awscli boto3 "dvc[ssh,s3]"
+          pip install virtualenv awscli boto3
           pip install --force-reinstall blinker
 
           SECRET_JSON=$(aws secretsmanager get-secret-value \
@@ -134,7 +136,7 @@ Resources:
             git clone https://github.com/Aishwarya1223/Used-Car-Price-Prediction-System /home/ubuntu/mlflow-folder/app
           fi
           git config --global --add safe.directory /home/ubuntu/mlflow-folder/app
-
+          pip install "dvc[s3]" 2>&1 | tee /home/ubuntu/mlflow-folder/dvc-install.log
           /home/ubuntu/mlflow-folder/venv/bin/dvc pull
 
           docker build -t used-car-predict-app /home/ubuntu/mlflow-folder/app
