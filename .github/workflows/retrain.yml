@@ -10,7 +10,7 @@ on:
 env:
   AWS_REGION: us-east-1
   IMAGE_TAG: latest
-  STACK_NAME: ec2-server-hosting
+  STACK_NAME: ec2-server
   TEMPLATE_FILE: cloudformation_template/streamlit-docker-ec2-hosting.yaml
 
 jobs:

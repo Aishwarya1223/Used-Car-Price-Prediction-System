@@ -137,6 +137,8 @@ Resources:
           fi
           git config --global --add safe.directory /home/ubuntu/mlflow-folder/app
           pip install "dvc[s3]" 2>&1 | tee /home/ubuntu/mlflow-folder/dvc-install.log
+          
+          cd /home/ubuntu/mlflow-folder/app
           /home/ubuntu/mlflow-folder/venv/bin/dvc pull
 
           docker build -t used-car-predict-app /home/ubuntu/mlflow-folder/app
