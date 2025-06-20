@@ -59,7 +59,7 @@ Resources:
   StreamlitInstance:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: t3.medium
       KeyName: !Ref KeyName
       SecurityGroups: [!Ref StreamlitSecurityGroup]
       ImageId: !Ref AMIImage
