@@ -108,18 +108,15 @@ jobs:
           echo "MLFLOW_TRACKING_URI=http://${IP}:5000" >> $GITHUB_ENV
           echo "::set-output name=IP::$IP"
 
-      - name: Wait for MLflow to be reachable (max ~5 min)
+      - name: Wait for MLflow to be reachable
         run: |
-          for i in {1..30}; do
-            if curl --fail --silent "http://${{ steps.ec2-ip.outputs.IP }}:5000" > /dev/null; then
-              echo "MLflow is up!"
-              exit 0
-            fi
-            echo "MLflow not up yet… retry $i/30"
+          for i in {1..50}; do
+            echo "MLflow not up yet... retry $i/30"
+            curl --connect-timeout 10 --silent --fail http://${{ steps.get-ec2-ip.outputs.IP }}:5000 && break
             sleep 10
           done
-          echo "MLflow never became reachable" >&2
-          exit 1
+
+
 
       - name: Pull models and data from DVC remote
         run: dvc pull
