@@ -83,12 +83,13 @@ jobs:
         if: steps.check-stack.outputs.exists == 'false'
         run: |
           aws cloudformation deploy \
-            --stack-name $STACK_NAME \
-            --template-file $TEMPLATE_FILE \
+            --stack-name "${{ env.STACK_NAME }}" \
+            --template-file "${{ env.TEMPLATE_FILE }}" \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-            --region $AWS_REGION \
+            --region "${{ env.AWS_REGION }}" \
             --no-fail-on-empty-changeset \
             --parameter-overrides KeyName=used-car-project-keypair
+
 
       - name: Wait for stack to complete (only if created)
         if: steps.check-stack.outputs.exists == 'false'
