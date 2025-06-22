@@ -18,8 +18,8 @@ jobs:
 
       - name: Set up SSH key
         run: |
-          echo "${{ secrets.EC2_KEY }}" > ec2-key.pem
-          chmod 600 ec2-key.pem
+          echo "${{ secrets.EC2_KEY }}" > used-car-project-keypair.pem
+          chmod 600 used-car-project-keypair.pem
 
       - name: Connect to EC2 and redeploy
         run: |
@@ -29,5 +29,5 @@ jobs:
             docker stop $(docker ps -q) || true
             docker rm $(docker ps -a -q) || true
             docker build -t used-car-predict-app .
-            docker run -d -p 8501:8501 used-car-predict-app
+            docker run -d -p 8501:8501 --name used-car-app used-car-predict-app
           EOF

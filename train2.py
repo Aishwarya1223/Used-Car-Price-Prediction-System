@@ -156,7 +156,7 @@ if __name__=="__main__":
             mlflow.sklearn.log_model(model, artifact_path="model")
             
             # Log encoders
-            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/onehot_encoder.pkl")
             mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
             
             
@@ -176,7 +176,7 @@ if __name__=="__main__":
 
             mlflow.log_artifact(h2o_model_path)
         
-            mlflow.log_artifact("picklefile_preprocessors/ohe_encoder.pkl")
+            mlflow.log_artifact("picklefile_preprocessors/onehot_encoder.pkl")
             mlflow.log_artifact("picklefile_preprocessors/target_encoder.pkl")
         
         

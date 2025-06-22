@@ -14,11 +14,9 @@ xgboost
 lightgbm
 optuna
 keras
-Flask
 streamlit
 pytest
 mlflow
 autokeras
 sqlalchemy
-cloudpickle
 mysql-connector-python

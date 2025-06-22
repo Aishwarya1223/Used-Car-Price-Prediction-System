@@ -16,8 +16,7 @@ RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install https://h2o-release.s3.amazonaws.com/h2o/rel-3.46.0/7/Python/h2o-3.46.0.7-py2.py3-none-any.whl
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip cache purge
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Copy the rest of your app
 COPY . .
