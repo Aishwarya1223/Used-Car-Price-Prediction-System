@@ -215,6 +215,7 @@ Resources:
 
   MyS3Bucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
     Properties:
       BucketName: mlflow-tracker-s3
       PublicAccessBlockConfiguration:
