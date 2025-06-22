@@ -136,8 +136,16 @@ jobs:
 
       - name: Commit DVC metadata
         run: |
-          git add best_model/best_model.pkl.dvc dvc.lock
+          if [ -f best_model/best_model.pkl.dvc ]; then
+            git add best_model/best_model.pkl.dvc
+          fi
+
+          if [ -f dvc.lock ]; then
+            git add dvc.lock
+          fi
+
           git diff --cached --quiet || git commit -m "Auto: update best_model.pkl on $(date -u +'%Y-%m-%d %H:%M:%S')"
+
 
       - name: Push Git changes to GitHub
         env:
