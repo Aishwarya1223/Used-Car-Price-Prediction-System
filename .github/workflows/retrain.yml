@@ -127,7 +127,7 @@ jobs:
 
       - name: Track best model with DVC
         run: |
-          dvc add models/best_model.pkl
+          dvc add best_model/best_model.pkl
 
       - name: Configure Git
         run: |
@@ -136,7 +136,7 @@ jobs:
 
       - name: Commit DVC metadata
         run: |
-          git add models/best_model.pkl.dvc dvc.lock
+          git add best_model/best_model.pkl.dvc dvc.lock
           git diff --cached --quiet || git commit -m "Auto: update best_model.pkl on $(date -u +'%Y-%m-%d %H:%M:%S')"
 
       - name: Push Git changes to GitHub
