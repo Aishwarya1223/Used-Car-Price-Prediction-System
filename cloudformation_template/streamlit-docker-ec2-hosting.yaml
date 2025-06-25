@@ -67,7 +67,7 @@ Resources:
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
-            VolumeSize: 35
+            VolumeSize: 60
             VolumeType: gp2
             DeleteOnTermination: true
       Tags:
@@ -140,6 +140,12 @@ Resources:
 
           cd /home/ubuntu/mlflow-folder/app
           /home/ubuntu/mlflow-folder/venv/bin/dvc pull
+
+          apt-get clean
+          rm -rf /var/lib/apt/lists/*
+          rm -rf /tmp/*
+          rm -rf ~/.cache/pip
+          docker system prune -af || true
 
           docker build -t used-car-predict-app /home/ubuntu/mlflow-folder/app
           docker run -d -p 8501:8501 --restart=always \

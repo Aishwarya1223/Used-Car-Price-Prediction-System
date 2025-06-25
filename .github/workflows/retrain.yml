@@ -1,10 +1,6 @@
 name: Auto Retrain Model
 
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 0 * * SUN"
   workflow_dispatch:
 
 env:
